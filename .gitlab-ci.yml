@@ -82,12 +82,22 @@ container_scanning:
 # Génération de l'inventaire logiciel (SBOM)
 generate_sbom:
   stage: security-image
-  image: anchore/syft:latest
+  image: alpine:latest
+  tags:
+    - docker
+  before_script:
+    # On installe curl pour télécharger Syft
+    - apk add --no-cache curl
+    # On télécharge et on installe Syft proprement
+    - curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
   script:
-    - syft . -o cyclonedx-json > sbom.json
+    - echo "Génération du SBOM..."
+    - /usr/local/bin/syft . -o cyclonedx-json > sbom.json
+    - echo "SBOM généré avec succès."
   artifacts:
     paths:
       - sbom.json
+    expire_in: 1 week
 
 # =========================================================
 # STAGE 4 : PACKAGE (Push Registry)
