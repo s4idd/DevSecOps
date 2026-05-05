@@ -1,0 +1,35 @@
+(base) MacBook-Air-de-said:DevSecOps said$ docker run --rm -v "$(pwd):/src" returntocorp/semgrep semgrep scan --config auto
+               
+               
+┌─────────────┐
+│ Scan Status │
+└─────────────┘
+  Scanning 27 files tracked by git with 1059 Code rules:
+                                                                                                                        
+  Language      Rules   Files          Origin      Rules                                                                
+ ─────────────────────────────        ───────────────────                                                               
+  <multilang>      60      27          Community    1059                                                                
+  js              153      10                                                                                           
+  yaml             31       4                                                                                           
+  dockerfile        6       2                                                                                           
+  python          243       1                                                                                           
+  json              4       1                                                                                           
+  html              1       1                                                                                           
+                                                                                                                        
+                
+                
+┌──────────────┐
+│ Scan Summary │
+└──────────────┘
+✅ Scan completed successfully.
+ • Findings: 0 (0 blocking)
+ • Rules run: 494
+ • Targets scanned: 27
+ • Parsed lines: ~100.0%
+ • No ignore information available
+Ran 494 rules on 27 files: 0 findings.
+(need more rules? `semgrep login` for additional free Semgrep Registry rules)
+
+If Semgrep missed a finding, please send us feedback to let us know!
+See https://semgrep.dev/docs/reporting-false-negatives/
+(base) MacBook-Air-de-said:DevSecOps said$ 

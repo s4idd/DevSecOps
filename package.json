@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "cross-spawn": "^7.0.6",
+    "esbuild": "^0.24.2",
+    "glob": "^13.0.6",
+    "tar": "^7.5.13",
+    "vite": "^6.0.0"
+  }
+}

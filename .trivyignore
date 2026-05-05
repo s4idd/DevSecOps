@@ -1,0 +1,4 @@
+# CVE-2024-23342: python-ecdsa vulnerable to Minerva attack. 
+# Risk mitigated by using 'cryptography' backend in python-jose.
+# No fixed version available yet.
+CVE-2024-23342

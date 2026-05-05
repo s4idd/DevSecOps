@@ -1,0 +1,20 @@
+services:
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=movie_db
+
+  backend:
+    build: ./backend
+    env_file: .env   # <--- C'EST ICI : il va lire ta clé API
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:5173"
