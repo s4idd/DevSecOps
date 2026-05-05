@@ -1,0 +1,115 @@
+stages:
+  - security-static   # Phase 1 : Scan du code (Secrets & SAST)
+  - build-test        # Phase 2 : Compilation & Validation
+  - security-image    # Phase 3 : Scan des images & SBOM
+  - package           # Phase 4 : Mise en production (Registry)
+
+variables:
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""
+  # Versioning par ID de commit pour la traçabilité
+  BACKEND_IMAGE: $CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHORT_SHA
+  FRONTEND_IMAGE: $CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHORT_SHA
+
+# --- OPTIMISATION : CACHE ---
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - frontend/node_modules/
+    - backend/.cache/pip
+
+# =========================================================
+# STAGE 1 : SECURITY STATIC (Code Source)
+# =========================================================
+
+# Vérifie qu'aucun mot de passe n'est dans le code
+secrets_scan:
+  stage: security-static
+  image: zricethezav/gitleaks:latest
+  script:
+    - gitleaks detect --verbose --source .
+  allow_failure: true
+
+# Analyse la logique du code (SAST)
+sast_scan:
+  stage: security-static
+  image: returntocorp/semgrep
+  variables:
+    SEMGREP_RULES: p/default
+  script:
+    - semgrep scan --error
+  allow_failure: true
+
+# =========================================================
+# STAGE 2 : BUILD & TEST
+# =========================================================
+
+build_backend:
+  stage: build-test
+  image: python:3.11-slim
+  script:
+    - cd backend && pip install -r requirements.txt
+    - python3 -m py_compile main.py
+    - echo "Backend validé"
+
+build_frontend:
+  stage: build-test
+  image: node:20-slim
+  script:
+    - cd frontend && npm install && npm run build
+  artifacts:
+    paths:
+      - frontend/dist/
+    expire_in: 1 hour
+
+# =========================================================
+# STAGE 3 : SECURITY IMAGE & SBOM
+# =========================================================
+
+# Scan des vulnérabilités de l'image (SCA)
+container_scanning:
+  stage: security-image
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build -t $BACKEND_IMAGE ./backend
+    - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --severity HIGH,CRITICAL --exit-code 0 $BACKEND_IMAGE
+  allow_failure: true
+
+# Génération de l'inventaire logiciel (SBOM)
+generate_sbom:
+  stage: security-image
+  image: anchore/syft:latest
+  script:
+    - syft . -o cyclonedx-json > sbom.json
+  artifacts:
+    paths:
+      - sbom.json
+
+# =========================================================
+# STAGE 4 : PACKAGE (Push Registry)
+# =========================================================
+
+release_prod:
+  stage: package
+  image: docker:latest
+  services:
+    - docker:dind
+  only:
+    - main
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    # On tague en 'latest' et en 'commit_id'
+    - docker build -t $BACKEND_IMAGE ./backend
+    - docker tag $BACKEND_IMAGE $CI_REGISTRY_IMAGE/backend:latest
+    - docker push $BACKEND_IMAGE
+    - docker push $CI_REGISTRY_IMAGE/backend:latest
+    
+    - docker build -t $FRONTEND_IMAGE ./frontend
+    - docker tag $FRONTEND_IMAGE $CI_REGISTRY_IMAGE/frontend:latest
+    - docker push $FRONTEND_IMAGE
+    - docker push $CI_REGISTRY_IMAGE/frontend:latest
